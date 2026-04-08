@@ -7,7 +7,18 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      MAPBOX_VTZERO_REV: d4e8e099a32c37dfb54c04539ce73851bbe35917
     steps:
       - uses: actions/checkout@v4
+      - name: Clone mapbox/vtzero (test data + mvt-fixtures submodule)
+        run: |
+          git clone https://github.com/mapbox/vtzero.git mapbox-vtzero
+          git -C mapbox-vtzero checkout "$MAPBOX_VTZERO_REV"
+          git -C mapbox-vtzero submodule update --init --recursive
+          mkdir -p vtzero/test
+          cp -a mapbox-vtzero/test/data vtzero/test/
+          cp -a mapbox-vtzero/test/mvt-fixtures vtzero/test/
+          rm -rf mapbox-vtzero
       - uses: mlugg/setup-zig@v2
       - run: zig build test
