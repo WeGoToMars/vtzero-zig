@@ -1,0 +1,11 @@
+CompileFlags:
+  Add:
+    - -std=c++17
+    # Paths are resolved relative to this directory (src/benchmark/cpp/).
+    - -I../../../vtzero/include
+    - -I../../../vtzero/third_party/protozero/include
+
+Diagnostics:
+  # The vendored upstream code can be noisy; keep focus on this repo's code.
+  Suppress:
+    - "misc-include-cleaner"
