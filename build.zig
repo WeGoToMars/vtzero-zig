@@ -62,6 +62,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("test/test_main.zig"),
         .target = target,
         .optimize = optimize,
+        .link_libc = true,
     });
     test_mod.addImport("vtzero", mod);
 
