@@ -16,7 +16,7 @@ pub fn build(b: *std.Build) void {
     // Benchmark tile parsing
     // ------------------------------------------------------------
     const bench_zig_mod = b.createModule(.{
-        .root_source_file = b.path("src/benchmark/zig/bench_parse_mvt.zig"),
+        .root_source_file = b.path("benchmark/zig/bench_parse_mvt.zig"),
         .target = target,
         .optimize = .ReleaseFast,
     });
@@ -29,13 +29,13 @@ pub fn build(b: *std.Build) void {
 
     const install_bench = b.addInstallArtifact(bench_zig, .{});
 
-    const bench_cpp_compile = b.addSystemCommand(&.{"clang++"});
+    const bench_cpp_compile = b.addSystemCommand(&.{"g++"});
     bench_cpp_compile.addArgs(&.{ "-std=c++17", "-O3", "-march=native", "-mtune=native" });
     bench_cpp_compile.addArg("-I");
     bench_cpp_compile.addDirectoryArg(b.path("vtzero/include"));
     bench_cpp_compile.addArg("-I");
     bench_cpp_compile.addDirectoryArg(b.path("vtzero/third_party/protozero/include"));
-    bench_cpp_compile.addFileArg(b.path("src/benchmark/cpp/bench_parse_mvt.cpp"));
+    bench_cpp_compile.addFileArg(b.path("benchmark/cpp/bench_parse_mvt.cpp"));
     bench_cpp_compile.addArg("-o");
     const cpp_bench_out = bench_cpp_compile.addOutputFileArg("bench-parse-mvt-cpp");
 
