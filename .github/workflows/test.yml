@@ -18,10 +18,15 @@ jobs:
           git -C mapbox-vtzero submodule update --init --recursive
           mkdir -p vtzero/test vtzero/third_party/protozero
           cp -a mapbox-vtzero/include vtzero/
-          cp -a mapbox-vtzero/third_party/protozero/include vtzero/third_party/protozero/
           cp -a mapbox-vtzero/test/data vtzero/test/
           cp -a mapbox-vtzero/test/mvt-fixtures vtzero/test/
           rm -rf mapbox-vtzero
+      - name: Clone mapbox/protozero headers
+        run: |
+          git clone --depth 1 https://github.com/mapbox/protozero.git mapbox-protozero
+          mkdir -p vtzero/third_party/protozero
+          cp -a mapbox-protozero/include vtzero/third_party/protozero/
+          rm -rf mapbox-protozero
       - uses: mlugg/setup-zig@v2
       - name: Run all tests
         run: zig build test
