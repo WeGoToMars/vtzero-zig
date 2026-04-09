@@ -31,4 +31,4 @@ jobs:
       - name: Run all tests
         run: zig build test
       - name: Run benchmarks
-        run: zig build bench
+        run: zig build bench -Doptimize=ReleaseFast -Dcpu=native
