@@ -21,4 +21,7 @@ jobs:
           cp -a mapbox-vtzero/test/mvt-fixtures vtzero/test/
           rm -rf mapbox-vtzero
       - uses: mlugg/setup-zig@v2
-      - run: zig build test
+      - name: Run all tests
+        run: zig build test
+      - name: Run benchmarks
+        run: zig build bench
