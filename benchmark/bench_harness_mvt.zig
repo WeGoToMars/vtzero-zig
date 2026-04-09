@@ -83,6 +83,31 @@ fn runWorker(
     return parseWorkerOutput(res.stdout, decode_mode);
 }
 
+const colors = struct {
+    const cyan = "\x1b[36m";
+    const green = "\x1b[32m";
+    const yellow = "\x1b[33m";
+    const red = "\x1b[31m";
+    const magenta = "\x1b[35m";
+    const reset = "\x1b[0m";
+};
+
+/// Format a speedup factor as a string with the appropriate color
+fn formatSpeedup(alloc: std.mem.Allocator, speedup: f64) ![]const u8 {
+    const prefix: []const u8 = if (speedup < 0.8) // more than 20% slower
+        colors.red
+    else if (speedup < 0.95) // between 5% and 20% slower
+        colors.magenta
+    else if (speedup < 1.05) // within 5% of the reference
+        colors.yellow
+    else if (speedup < 1.2) // between 5% and 20% faster
+        colors.cyan
+    else // more than 20% faster
+        colors.green;
+
+    return try std.fmt.allocPrint(alloc, "{s}{d:.3}x{s}", .{ prefix, speedup, colors.reset });
+}
+
 pub fn main(init: std.process.Init) !void {
     const alloc = init.gpa;
     const io = init.io;
@@ -234,29 +259,29 @@ pub fn main(init: std.process.Init) !void {
         const cpp_decode_med = medianNs(repeats, cpp_decode_times) / iters;
 
         std.debug.print(
-            "SUMMARY folder={s} mode=parse-only tiles={d} checksum_match={s} zig_median_per_iter_ns={d} zig_p95_per_iter_ns={d} cpp_median_per_iter_ns={d} cpp_p95_per_iter_ns={d} cpp_vs_zig={d:.3}x\n",
+            "[BENCH] folder={s} mode=parse-only tiles={d} checksum={s} (median/p95 ns) zig={d}/{d} cpp={d}/{d} speedup={s}\n",
             .{
                 folder,
                 paths.len,
-                if (zig_parse_checksum == cpp_parse_checksum) "yes" else "no",
+                if (zig_parse_checksum == cpp_parse_checksum) "✓" else "✗",
                 zig_parse_med,
                 p95Ns(repeats, zig_parse_times) / iters,
                 cpp_parse_med,
                 p95Ns(repeats, cpp_parse_times) / iters,
-                @as(f64, @floatFromInt(cpp_parse_med)) / @as(f64, @floatFromInt(zig_parse_med)),
+                try formatSpeedup(alloc, @as(f64, @floatFromInt(cpp_parse_med)) / @as(f64, @floatFromInt(zig_parse_med))),
             },
         );
         std.debug.print(
-            "SUMMARY folder={s} mode=parse+decode tiles={d} checksum_match={s} zig_median_per_iter_ns={d} zig_p95_per_iter_ns={d} cpp_median_per_iter_ns={d} cpp_p95_per_iter_ns={d} cpp_vs_zig={d:.3}x\n",
+            "[BENCH] folder={s} mode=parse+decode tiles={d} checksum={s} | Times: (median/p95 ns) zig={d}/{d} cpp={d}/{d} speedup={s}\n",
             .{
                 folder,
                 paths.len,
-                if (zig_decode_checksum == cpp_decode_checksum) "yes" else "no",
+                if (zig_decode_checksum == cpp_decode_checksum) "✓" else "✗",
                 zig_decode_med,
                 p95Ns(repeats, zig_decode_times) / iters,
                 cpp_decode_med,
                 p95Ns(repeats, cpp_decode_times) / iters,
-                @as(f64, @floatFromInt(cpp_decode_med)) / @as(f64, @floatFromInt(zig_decode_med)),
+                try formatSpeedup(alloc, @as(f64, @floatFromInt(cpp_decode_med)) / @as(f64, @floatFromInt(zig_decode_med))),
             },
         );
 
