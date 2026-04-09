@@ -1,3 +1,4 @@
+const std = @import("std");
 const pbf = @import("detail/pbf.zig");
 const types = @import("types.zig");
 const mvt = @import("mvt_schema.zig");
@@ -90,10 +91,10 @@ pub const PropertyValue = struct {
                     .string_value => field.data,
                     .float_value => try pbf.decodeFloat(field.data),
                     .double_value => try pbf.decodeDouble(field.data),
-                    .int_value => try pbf.decodeInt64(field.data),
-                    .uint_value => try pbf.decodeUint64(field.data),
-                    .sint_value => try pbf.decodeSint64(field.data),
-                    .bool_value => try pbf.decodeBool(field.data),
+                    .int_value => std.math.cast(i64, try pbf.fieldVarintValue(field)) orelse return error.IntegerOverflow,
+                    .uint_value => try pbf.fieldVarintValue(field),
+                    .sint_value => pbf.decodeZigZag64(try pbf.fieldVarintValue(field)),
+                    .bool_value => (try pbf.fieldVarintValue(field)) != 0,
                 };
                 found = true;
             }
@@ -117,4 +118,3 @@ fn validPropertyType(tag: u32, wire_type: pbf.WireType) !PropertyValueType {
         else => error.IllegalPropertyValueType,
     };
 }
-

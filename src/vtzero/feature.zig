@@ -40,7 +40,7 @@ pub const Feature = struct {
             switch (field.tag) {
                 mvt.Feature.id => {
                     if (field.wire_type != .varint) return error.InvalidFeatureField;
-                    result.id_value = try pbf.decodeUint64(field.data);
+                    result.id_value = try pbf.fieldVarintValue(field);
                     result.has_id_value = true;
                 },
                 mvt.Feature.tags => {
@@ -51,7 +51,7 @@ pub const Feature = struct {
                 },
                 mvt.Feature.@"type" => {
                     if (field.wire_type != .varint) return error.InvalidFeatureField;
-                    const value = try pbf.decodeUint32(field.data);
+                    const value = std.math.cast(u32, try pbf.fieldVarintValue(field)) orelse return error.IntegerOverflow;
                     result.geometry_type_value = switch (value) {
                         0 => .UNKNOWN,
                         1 => .POINT,
@@ -72,9 +72,12 @@ pub const Feature = struct {
         // Spec 4.2 requires a geometry field.
         if (result.geometry_data == null) return error.MissingGeometryField;
 
-        var it = pbf.PackedUInt32Iterator.init(result.properties);
+        // Each varint contributes exactly one byte with MSB cleared.
+        // Counting those bytes is faster than fully decoding all packed values.
         var count: usize = 0;
-        while (try it.next()) |_| count += 1;
+        for (result.properties) |b| {
+            if ((b & 0x80) == 0) count += 1;
+        }
         // Spec 4.4 stores tags as key/value index pairs.
         if ((count % 2) != 0) return error.UnpairedPropertyIndexes;
         result.num_properties_value = count / 2;

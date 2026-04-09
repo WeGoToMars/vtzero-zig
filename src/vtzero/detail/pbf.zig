@@ -15,6 +15,7 @@ pub const Field = struct {
     tag: u32,
     wire_type: WireType,
     data: []const u8,
+    varint_value: ?u64 = null,
 };
 
 /// Lightweight protobuf reader that iterates fields without copying.
@@ -36,41 +37,48 @@ pub const Reader = struct {
         if (tag == 0) return error.InvalidTag;
 
         const wt_num = @as(u3, @truncate(key & 0x7));
-        if (std.enums.tagName(WireType, @as(WireType, @enumFromInt(wt_num))) == null) {
-            return error.UnsupportedWireType;
-        }
-        const wire_type: WireType = @enumFromInt(wt_num);
 
-        return switch (wire_type) {
-            .varint => blk: {
+        return switch (wt_num) {
+            @intFromEnum(WireType.varint) => blk: {
                 const start = self.pos;
-                _ = try decodeVarintAt(self.data, &self.pos);
-                break :blk Field{ .tag = tag, .wire_type = wire_type, .data = self.data[start..self.pos] };
+                const value = try decodeVarintAt(self.data, &self.pos);
+                break :blk Field{
+                    .tag = tag,
+                    .wire_type = .varint,
+                    .data = self.data[start..self.pos],
+                    .varint_value = value,
+                };
             },
-            .fixed64 => blk: {
+            @intFromEnum(WireType.fixed64) => blk: {
                 if (self.pos + 8 > self.data.len) return error.UnexpectedEof;
                 const start = self.pos;
                 self.pos += 8;
-                break :blk Field{ .tag = tag, .wire_type = wire_type, .data = self.data[start..self.pos] };
+                break :blk Field{ .tag = tag, .wire_type = .fixed64, .data = self.data[start..self.pos], .varint_value = null };
             },
-            .length_delimited => blk: {
+            @intFromEnum(WireType.length_delimited) => blk: {
                 const len = try decodeVarintAt(self.data, &self.pos);
                 if (len > std.math.maxInt(usize)) return error.LengthOverflow;
                 const usize_len: usize = @intCast(len);
                 if (self.pos + usize_len > self.data.len) return error.UnexpectedEof;
                 const start = self.pos;
                 self.pos += usize_len;
-                break :blk Field{ .tag = tag, .wire_type = wire_type, .data = self.data[start..self.pos] };
+                break :blk Field{ .tag = tag, .wire_type = .length_delimited, .data = self.data[start..self.pos], .varint_value = null };
             },
-            .fixed32 => blk: {
+            @intFromEnum(WireType.fixed32) => blk: {
                 if (self.pos + 4 > self.data.len) return error.UnexpectedEof;
                 const start = self.pos;
                 self.pos += 4;
-                break :blk Field{ .tag = tag, .wire_type = wire_type, .data = self.data[start..self.pos] };
+                break :blk Field{ .tag = tag, .wire_type = .fixed32, .data = self.data[start..self.pos], .varint_value = null };
             },
+            else => error.UnsupportedWireType,
         };
     }
 };
+
+pub fn fieldVarintValue(field: Field) !u64 {
+    if (field.wire_type != .varint) return error.InvalidWireType;
+    return field.varint_value orelse decodeVarint(field.data);
+}
 
 pub fn decodeVarint(data: []const u8) !u64 {
     var pos: usize = 0;
@@ -81,16 +89,27 @@ pub fn decodeVarint(data: []const u8) !u64 {
 
 /// Decode a varint from `data` at `pos`, updating `pos` to the first byte after it.
 pub fn decodeVarintAt(data: []const u8, pos: *usize) !u64 {
+    if (pos.* >= data.len) return error.UnexpectedEof;
+
+    // Fast path: one-byte varints are very common.
+    const b0 = data[pos.*];
+    if ((b0 & 0x80) == 0) {
+        pos.* += 1;
+        return b0;
+    }
+    var p = pos.*;
     var shift: u6 = 0;
     var value: u64 = 0;
-
     while (true) {
-        if (pos.* >= data.len) return error.UnexpectedEof;
-        const byte = data[pos.*];
-        pos.* += 1;
+        if (p >= data.len) return error.UnexpectedEof;
+        const byte = data[p];
+        p += 1;
 
         value |= @as(u64, byte & 0x7f) << shift;
-        if ((byte & 0x80) == 0) return value;
+        if ((byte & 0x80) == 0) {
+            pos.* = p;
+            return value;
+        }
 
         if (shift >= 63) return error.VarintOverflow;
         shift += 7;

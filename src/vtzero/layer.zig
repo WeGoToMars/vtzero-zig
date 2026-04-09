@@ -30,7 +30,7 @@ pub const Layer = struct {
             switch (field.tag) {
                 mvt.Layer.version => {
                     if (field.wire_type != .varint) return error.InvalidLayerField;
-                    result.version_value = try pbf.decodeUint32(field.data);
+                    result.version_value = std.math.cast(u32, try pbf.fieldVarintValue(field)) orelse return error.IntegerOverflow;
                 },
                 mvt.Layer.name => {
                     if (field.wire_type != .length_delimited) return error.InvalidLayerField;
@@ -50,7 +50,7 @@ pub const Layer = struct {
                 },
                 mvt.Layer.extent => {
                     if (field.wire_type != .varint) return error.InvalidLayerField;
-                    result.extent_value = try pbf.decodeUint32(field.data);
+                    result.extent_value = std.math.cast(u32, try pbf.fieldVarintValue(field)) orelse return error.IntegerOverflow;
                 },
                 // Keep strict vtzero behavior for layer-level unknown fields.
                 else => return error.UnknownLayerField,
@@ -178,7 +178,7 @@ pub const Layer = struct {
 
             var feature_reader = pbf.Reader.init(field.data);
             if (try feature_reader.next()) |feature_field| {
-                if (feature_field.tag == mvt.Feature.id and feature_field.wire_type == .varint and try pbf.decodeUint64(feature_field.data) == id) {
+                if (feature_field.tag == mvt.Feature.id and feature_field.wire_type == .varint and try pbf.fieldVarintValue(feature_field) == id) {
                     return try Feature.init(data, self.key_table_size_value, self.value_table_size_value, field.data);
                 }
             }
