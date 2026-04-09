@@ -16,7 +16,9 @@ jobs:
           git clone https://github.com/mapbox/vtzero.git mapbox-vtzero
           git -C mapbox-vtzero checkout "$MAPBOX_VTZERO_REV"
           git -C mapbox-vtzero submodule update --init --recursive
-          mkdir -p vtzero/test
+          mkdir -p vtzero/test vtzero/third_party/protozero
+          cp -a mapbox-vtzero/include vtzero/
+          cp -a mapbox-vtzero/third_party/protozero/include vtzero/third_party/protozero/
           cp -a mapbox-vtzero/test/data vtzero/test/
           cp -a mapbox-vtzero/test/mvt-fixtures vtzero/test/
           rm -rf mapbox-vtzero
