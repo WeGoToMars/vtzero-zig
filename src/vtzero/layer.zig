@@ -103,11 +103,9 @@ pub const Layer = struct {
 
         var reader = pbf.Reader.init(self.data orelse return error.InvalidLayer);
         var index: usize = 0;
-        while (try reader.next()) |field| {
-            if (field.tag == mvt.Layer.keys and field.wire_type == .length_delimited) {
-                keys[index] = field.data;
-                index += 1;
-            }
+        while (try reader.skipToTag(mvt.Layer.keys, .length_delimited)) |data| {
+            keys[index] = data;
+            index += 1;
         }
         return keys;
     }
@@ -119,11 +117,9 @@ pub const Layer = struct {
 
         var reader = pbf.Reader.init(self.data orelse return error.InvalidLayer);
         var index: usize = 0;
-        while (try reader.next()) |field| {
-            if (field.tag == mvt.Layer.values and field.wire_type == .length_delimited) {
-                values[index] = PropertyValue.init(field.data);
-                index += 1;
-            }
+        while (try reader.skipToTag(mvt.Layer.values, .length_delimited)) |data| {
+            values[index] = PropertyValue.init(data);
+            index += 1;
         }
         return values;
     }
@@ -132,11 +128,9 @@ pub const Layer = struct {
     pub fn key(self: Layer, index: u32) ![]const u8 {
         var reader = pbf.Reader.init(self.data orelse return error.InvalidLayer);
         var current: u32 = 0;
-        while (try reader.next()) |field| {
-            if (field.tag == mvt.Layer.keys and field.wire_type == .length_delimited) {
-                if (current == index) return field.data;
-                current += 1;
-            }
+        while (try reader.skipToTag(mvt.Layer.keys, .length_delimited)) |data| {
+            if (current == index) return data;
+            current += 1;
         }
         return error.IndexOutOfRange;
     }
@@ -145,11 +139,9 @@ pub const Layer = struct {
     pub fn value(self: Layer, index: u32) !PropertyValue {
         var reader = pbf.Reader.init(self.data orelse return error.InvalidLayer);
         var current: u32 = 0;
-        while (try reader.next()) |field| {
-            if (field.tag == mvt.Layer.values and field.wire_type == .length_delimited) {
-                if (current == index) return PropertyValue.init(field.data);
-                current += 1;
-            }
+        while (try reader.skipToTag(mvt.Layer.values, .length_delimited)) |data| {
+            if (current == index) return PropertyValue.init(data);
+            current += 1;
         }
         return error.IndexOutOfRange;
     }
@@ -157,10 +149,8 @@ pub const Layer = struct {
     /// Iterate features in source order.
     pub fn nextFeature(self: *Layer) !?Feature {
         const data = self.data orelse return error.InvalidLayer;
-        while (try self.feature_reader.next()) |field| {
-            if (field.tag == mvt.Layer.features and field.wire_type == .length_delimited) {
-                return try Feature.init(data, self.key_table_size_value, self.value_table_size_value, field.data);
-            }
+        if (try self.feature_reader.skipToTag(mvt.Layer.features, .length_delimited)) |feature_data| {
+            return try Feature.init(data, self.key_table_size_value, self.value_table_size_value, feature_data);
         }
         return null;
     }
@@ -173,13 +163,11 @@ pub const Layer = struct {
     pub fn getFeatureById(self: *const Layer, id: u64) !?Feature {
         const data = self.data orelse return error.InvalidLayer;
         var reader = pbf.Reader.init(data);
-        while (try reader.next()) |field| {
-            if (field.tag != mvt.Layer.features or field.wire_type != .length_delimited) continue;
-
-            var feature_reader = pbf.Reader.init(field.data);
+        while (try reader.skipToTag(mvt.Layer.features, .length_delimited)) |feature_data| {
+            var feature_reader = pbf.Reader.init(feature_data);
             if (try feature_reader.next()) |feature_field| {
                 if (feature_field.tag == mvt.Feature.id and feature_field.wire_type == .varint and try pbf.fieldVarintValue(feature_field) == id) {
-                    return try Feature.init(data, self.key_table_size_value, self.value_table_size_value, field.data);
+                    return try Feature.init(data, self.key_table_size_value, self.value_table_size_value, feature_data);
                 }
             }
         }

@@ -24,18 +24,14 @@ pub const VectorTile = struct {
     pub fn countLayers(self: VectorTile) !usize {
         var count: usize = 0;
         var reader = pbf.Reader.init(self.data);
-        while (try reader.next()) |field| {
-            if (field.tag == mvt.Tile.layers and field.wire_type == .length_delimited) count += 1;
-        }
+        while (try reader.skipToTag(mvt.Tile.layers, .length_delimited)) |_| count += 1;
         return count;
     }
 
     /// Iterate layers in source order.
     pub fn nextLayer(self: *VectorTile) !?Layer {
-        while (try self.layer_reader.next()) |field| {
-            if (field.tag == mvt.Tile.layers and field.wire_type == .length_delimited) {
-                return try Layer.init(field.data);
-            }
+        if (try self.layer_reader.skipToTag(mvt.Tile.layers, .length_delimited)) |data| {
+            return try Layer.init(data);
         }
         return null;
     }
@@ -48,11 +44,9 @@ pub const VectorTile = struct {
     pub fn getLayer(self: VectorTile, index: usize) !?Layer {
         var current: usize = 0;
         var reader = pbf.Reader.init(self.data);
-        while (try reader.next()) |field| {
-            if (field.tag == mvt.Tile.layers and field.wire_type == .length_delimited) {
-                if (current == index) return try Layer.init(field.data);
-                current += 1;
-            }
+        while (try reader.skipToTag(mvt.Tile.layers, .length_delimited)) |data| {
+            if (current == index) return try Layer.init(data);
+            current += 1;
         }
         return null;
     }
@@ -60,19 +54,15 @@ pub const VectorTile = struct {
     /// Get layer by name (linear scan).
     pub fn getLayerByName(self: VectorTile, name: []const u8) !?Layer {
         var reader = pbf.Reader.init(self.data);
-        while (try reader.next()) |field| {
-            if (field.tag != mvt.Tile.layers or field.wire_type != .length_delimited) continue;
-
+        while (try reader.skipToTag(mvt.Tile.layers, .length_delimited)) |layer_data| {
             // Match C++ vtzero behavior: scan for the name field anywhere in the layer.
             // If a layer is missing a name field, this is a format error (spec 4.1).
-            var layer_reader = pbf.Reader.init(field.data);
+            var layer_reader = pbf.Reader.init(layer_data);
             var found_name = false;
-            while (try layer_reader.next()) |lf| {
-                if (lf.tag == mvt.Layer.name and lf.wire_type == .length_delimited) {
-                    found_name = true;
-                    if (std.mem.eql(u8, lf.data, name)) return try Layer.init(field.data);
-                    break; // name exists but doesn't match; continue with next layer
-                }
+            while (try layer_reader.skipToTag(mvt.Layer.name, .length_delimited)) |name_data| {
+                found_name = true;
+                if (std.mem.eql(u8, name_data, name)) return try Layer.init(layer_data);
+                break; // name exists but doesn't match; continue with next layer
             }
             if (!found_name) return error.MissingLayerName;
         }

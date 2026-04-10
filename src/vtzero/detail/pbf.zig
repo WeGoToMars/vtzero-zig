@@ -27,6 +27,66 @@ pub const Reader = struct {
         return .{ .data = data };
     }
 
+    /// Advance past a field's value without materializing any value or slice.
+    fn skipFieldValue(self: *Reader, wt_num: u3) !void {
+        switch (wt_num) {
+            @intFromEnum(WireType.varint) => {
+                const start = self.pos;
+                while (self.pos < self.data.len) {
+                    const b = self.data[self.pos];
+                    self.pos += 1;
+                    if ((b & 0x80) == 0) return;
+                    if (self.pos - start >= 10) return error.VarintOverflow;
+                }
+                return error.UnexpectedEof;
+            },
+            @intFromEnum(WireType.fixed64) => {
+                if (self.pos + 8 > self.data.len) return error.UnexpectedEof;
+                self.pos += 8;
+            },
+            @intFromEnum(WireType.length_delimited) => {
+                const len = try decodeVarintAt(self.data, &self.pos);
+                if (len > std.math.maxInt(usize)) return error.LengthOverflow;
+                const usize_len: usize = @intCast(len);
+                if (self.pos + usize_len > self.data.len) return error.UnexpectedEof;
+                self.pos += usize_len;
+            },
+            @intFromEnum(WireType.fixed32) => {
+                if (self.pos + 4 > self.data.len) return error.UnexpectedEof;
+                self.pos += 4;
+            },
+            else => return error.UnsupportedWireType,
+        }
+    }
+
+    /// Scan forward to the next `length_delimited` field with `target_tag`,
+    /// skipping non-matching fields without creating any `Field` struct or slice.
+    /// Returns the matched field's payload bytes, or null at end-of-message.
+    pub fn skipToTag(self: *Reader, target_tag: u32, target_wire_type: WireType) !?[]const u8 {
+        while (self.pos < self.data.len) {
+            const key = try decodeVarintAt(self.data, &self.pos);
+            const tag = @as(u32, @intCast(key >> 3));
+            if (tag == 0) return error.InvalidTag;
+            const wt_num = @as(u3, @truncate(key & 0x7));
+
+            if (tag == target_tag and wt_num == @intFromEnum(target_wire_type)) {
+                if (target_wire_type == .length_delimited) {
+                    const len = try decodeVarintAt(self.data, &self.pos);
+                    if (len > std.math.maxInt(usize)) return error.LengthOverflow;
+                    const usize_len: usize = @intCast(len);
+                    if (self.pos + usize_len > self.data.len) return error.UnexpectedEof;
+                    const start = self.pos;
+                    self.pos += usize_len;
+                    return self.data[start..self.pos];
+                }
+                return &.{};
+            }
+
+            try self.skipFieldValue(wt_num);
+        }
+        return null;
+    }
+
     /// Returns the next field in message order.
     /// `field.data` is always the raw bytes for that field value.
     pub fn next(self: *Reader) !?Field {
