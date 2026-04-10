@@ -97,9 +97,19 @@ pub fn decodeVarintAt(data: []const u8, pos: *usize) !u64 {
         pos.* += 1;
         return b0;
     }
-    var p = pos.*;
-    var shift: u6 = 0;
-    var value: u64 = 0;
+
+    // Fast path: two-byte varints are the most common multi-byte case.
+    if (pos.* + 1 >= data.len) return error.UnexpectedEof;
+    const b1 = data[pos.* + 1];
+    if ((b1 & 0x80) == 0) {
+        pos.* += 2;
+        return @as(u64, b0 & 0x7f) | (@as(u64, b1) << 7);
+    }
+
+    // 3+ byte varint: seed with bytes 0–1, continue the loop from byte 2.
+    var p = pos.* + 2;
+    var value: u64 = @as(u64, b0 & 0x7f) | (@as(u64, b1 & 0x7f) << 7);
+    var shift: u6 = 14;
     while (true) {
         if (p >= data.len) return error.UnexpectedEof;
         const byte = data[p];
