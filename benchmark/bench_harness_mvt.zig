@@ -12,6 +12,46 @@ const WorkerResult = struct {
     elapsed_ns: u64,
 };
 
+fn reportWorkerFailure(
+    io: std.Io,
+    term: std.process.Child.Term,
+    exe_path: []const u8,
+    decode_mode: bool,
+    iters: usize,
+    argv: []const []const u8,
+    worker_stdout: []const u8,
+    worker_stderr: []const u8,
+) !void {
+    var ew = std.Io.File.stderr().writerStreaming(io, &.{});
+    const mode_label: []const u8 = if (decode_mode) "parse+decode" else "parse-only";
+
+    switch (term) {
+        .exited => |code| try ew.interface.print(
+            "worker failed: exe={s} mode={s} iters={d} code={d} argv_len={d}\n",
+            .{ exe_path, mode_label, iters, code, argv.len },
+        ),
+        else => try ew.interface.print(
+            "worker failed: exe={s} mode={s} iters={d} term={any} argv_len={d}\n",
+            .{ exe_path, mode_label, iters, term, argv.len },
+        ),
+    }
+
+    for (argv, 0..) |a, idx| {
+        try ew.interface.print("  argv[{d}]={s}\n", .{ idx, a });
+    }
+
+    const sections = [_]struct { header: []const u8, body: []const u8 }{
+        .{ .header = "=== worker stderr ===\n", .body = worker_stderr },
+        .{ .header = "=== worker stdout ===\n", .body = worker_stdout },
+    };
+    for (sections) |s| {
+        if (s.body.len == 0) continue;
+        try ew.interface.writeAll(s.header);
+        try ew.interface.writeAll(s.body);
+        if (s.body[s.body.len - 1] != '\n') try ew.interface.writeAll("\n");
+    }
+}
+
 fn lessThanU64(_: void, a: u64, b: u64) bool {
     return a < b;
 }
@@ -67,20 +107,19 @@ fn runWorker(
 
     const res = try std.process.run(alloc, io, .{
         .argv = argv.items,
-        .stdout_limit = .limited(1024),
-        .stderr_limit = .limited(4096),
+        .stdout_limit = .unlimited,
+        .stderr_limit = .unlimited,
     });
     defer alloc.free(res.stdout);
     defer alloc.free(res.stderr);
 
     switch (res.term) {
-        .exited => |code| if (code != 0) {
-            if (res.stderr.len > 0) std.debug.print("{s}", .{res.stderr});
-            return error.WorkerFailed;
-        },
-        else => return error.WorkerFailed,
+        .exited => |code| if (code == 0) return parseWorkerOutput(res.stdout, decode_mode),
+        else => {},
     }
-    return parseWorkerOutput(res.stdout, decode_mode);
+
+    try reportWorkerFailure(io, res.term, exe_path, decode_mode, iters, argv.items, res.stdout, res.stderr);
+    return error.WorkerFailed;
 }
 
 const colors = struct {
