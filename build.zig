@@ -40,8 +40,10 @@ pub fn build(b: *std.Build) void {
     const install_bench_worker = b.addInstallArtifact(bench_zig_worker, .{});
     const install_bench_harness = b.addInstallArtifact(bench_harness, .{});
 
+    // Avoid -march=native here: GitHub-hosted runners (and similar VMs) can
+    // hit SIGILL if the binary is tuned for the build host's ISA quirks.
     const bench_cpp_compile = b.addSystemCommand(&.{"g++"});
-    bench_cpp_compile.addArgs(&.{ "-std=c++17", "-O3", "-march=native", "-mtune=native" });
+    bench_cpp_compile.addArgs(&.{ "-std=c++17", "-O3" });
     bench_cpp_compile.addArg("-I");
     bench_cpp_compile.addDirectoryArg(b.path("vtzero/include"));
     bench_cpp_compile.addArg("-I");
