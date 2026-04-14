@@ -44,8 +44,8 @@ pub fn addSteps(
     const install_bench_single_tile_steps = b.addInstallArtifact(bench_single_tile_steps, .{});
     const install_bench_harness = b.addInstallArtifact(bench_harness, .{});
 
-    const bench_cpp_compile = b.addSystemCommand(&.{"g++"});
-    bench_cpp_compile.addArgs(&.{ "-std=c++17", "-O3" });
+    const bench_cpp_compile = b.addSystemCommand(&.{"zig"});
+    bench_cpp_compile.addArgs(&.{ "c++", "-std=c++23", "-O3", "-Wno-system-headers" });
     bench_cpp_compile.addArg("-I");
     bench_cpp_compile.addDirectoryArg(b.path("vtzero/include"));
     bench_cpp_compile.addArg("-I");
@@ -56,8 +56,8 @@ pub fn addSteps(
 
     const install_bench_cpp = b.addInstallBinFile(cpp_bench_out, "bench-parse-mvt-cpp");
 
-    const bench_cpp_single_compile = b.addSystemCommand(&.{"g++"});
-    bench_cpp_single_compile.addArgs(&.{ "-std=c++23", "-O3" });
+    const bench_cpp_single_compile = b.addSystemCommand(&.{"zig"});
+    bench_cpp_single_compile.addArgs(&.{ "c++", "-std=c++23", "-O3", "-Wno-system-headers" });
     bench_cpp_single_compile.addArg("-I");
     bench_cpp_single_compile.addDirectoryArg(b.path("vtzero/include"));
     bench_cpp_single_compile.addArg("-I");
