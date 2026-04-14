@@ -1,6 +1,6 @@
 CompileFlags:
   Add:
-    - -std=c++17
+    - -std=c++23
     # Paths are resolved relative to this directory (/benchmark/cpp/).
     - -I../../vtzero/include
     - -I../../vtzero/third_party/protozero/include

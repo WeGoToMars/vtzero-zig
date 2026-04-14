@@ -40,5 +40,9 @@ jobs:
           g++ --version
       - name: Run all tests
         run: zig build test
-      - name: Run benchmarks
-        run: zig build bench -Doptimize=ReleaseFast -Dcpu=native
+      - name: Run summary benchmarks
+        run: zig build bench
+      - name: Run single-tile parse sub-step benchmarks
+        run: zig build bench-single-tile
+      - name: Run C++ single-tile parse sub-step benchmarks
+        run: zig build bench-single-tile-cpp

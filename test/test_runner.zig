@@ -89,7 +89,7 @@ fn mainInner() !void {
                 failed += 1;
                 try stdout_w.interface.print("[❌] {s} | {s} | {t}\n", .{ duration_str, test_fn.name, err });
                 if (@errorReturnTrace()) |trace| {
-                    std.debug.dumpStackTrace(trace);
+                    std.debug.dumpErrorReturnTrace(trace);
                 }
             },
         }
