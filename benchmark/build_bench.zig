@@ -44,29 +44,43 @@ pub fn addSteps(
     const install_bench_single_tile_steps = b.addInstallArtifact(bench_single_tile_steps, .{});
     const install_bench_harness = b.addInstallArtifact(bench_harness, .{});
 
-    const bench_cpp_compile = b.addSystemCommand(&.{"zig"});
-    bench_cpp_compile.addArgs(&.{ "c++", "-std=c++23", "-O3", "-Wno-system-headers" });
-    bench_cpp_compile.addArg("-I");
-    bench_cpp_compile.addDirectoryArg(b.path("vtzero/include"));
-    bench_cpp_compile.addArg("-I");
-    bench_cpp_compile.addDirectoryArg(b.path("vtzero/third_party/protozero/include"));
-    bench_cpp_compile.addFileArg(b.path("benchmark/cpp/bench_parse_mvt.cpp"));
-    bench_cpp_compile.addArg("-o");
-    const cpp_bench_out = bench_cpp_compile.addOutputFileArg("bench-parse-mvt-cpp");
+    const cpp_common_mod_options: std.Build.Module.CreateOptions = .{
+        .target = target,
+        .optimize = .ReleaseFast,
+        .link_libc = true,
+        .link_libcpp = true,
+    };
 
-    const install_bench_cpp = b.addInstallBinFile(cpp_bench_out, "bench-parse-mvt-cpp");
+    const bench_cpp_mod = b.createModule(cpp_common_mod_options);
+    bench_cpp_mod.addIncludePath(b.path("vtzero/include"));
+    bench_cpp_mod.addIncludePath(b.path("vtzero/third_party/protozero/include"));
+    bench_cpp_mod.addCSourceFiles(.{
+        .root = b.path("benchmark/cpp"),
+        .files = &.{"bench_parse_mvt.cpp"},
+        .flags = &.{"-std=c++23", "-Wno-system-headers"},
+    });
 
-    const bench_cpp_single_compile = b.addSystemCommand(&.{"zig"});
-    bench_cpp_single_compile.addArgs(&.{ "c++", "-std=c++23", "-O3", "-Wno-system-headers" });
-    bench_cpp_single_compile.addArg("-I");
-    bench_cpp_single_compile.addDirectoryArg(b.path("vtzero/include"));
-    bench_cpp_single_compile.addArg("-I");
-    bench_cpp_single_compile.addDirectoryArg(b.path("vtzero/third_party/protozero/include"));
-    bench_cpp_single_compile.addFileArg(b.path("benchmark/cpp/bench_parse_single_tile_steps.cpp"));
-    bench_cpp_single_compile.addArg("-o");
-    const cpp_single_bench_out = bench_cpp_single_compile.addOutputFileArg("bench-parse-single-tile-steps-cpp");
+    const bench_cpp_exe = b.addExecutable(.{
+        .name = "bench-parse-mvt-cpp",
+        .root_module = bench_cpp_mod,
+    });
 
-    const install_bench_cpp_single = b.addInstallBinFile(cpp_single_bench_out, "bench-parse-single-tile-steps-cpp");
+    const bench_cpp_single_mod = b.createModule(cpp_common_mod_options);
+    bench_cpp_single_mod.addIncludePath(b.path("vtzero/include"));
+    bench_cpp_single_mod.addIncludePath(b.path("vtzero/third_party/protozero/include"));
+    bench_cpp_single_mod.addCSourceFiles(.{
+        .root = b.path("benchmark/cpp"),
+        .files = &.{"bench_parse_single_tile_steps.cpp"},
+        .flags = &.{"-std=c++23", "-Wno-system-headers"},
+    });
+
+    const bench_cpp_single_exe = b.addExecutable(.{
+        .name = "bench-parse-single-tile-steps-cpp",
+        .root_module = bench_cpp_single_mod,
+    });
+
+    const install_bench_cpp = b.addInstallArtifact(bench_cpp_exe, .{});
+    const install_bench_cpp_single = b.addInstallArtifact(bench_cpp_single_exe, .{});
 
     const run_zig = b.addRunArtifact(bench_harness);
     run_zig.setCwd(b.path(""));
@@ -74,7 +88,7 @@ pub fn addSteps(
     run_zig.addArg("--zig-bench");
     run_zig.addArtifactArg(bench_zig_worker);
     run_zig.addArg("--cpp-bench");
-    run_zig.addFileArg(cpp_bench_out);
+    run_zig.addArtifactArg(bench_cpp_exe);
 
     const bench_step = b.step("bench", "Install + run Zig and C++ MVT parse benchmarks");
     bench_step.dependOn(&install_bench_worker.step);
@@ -92,10 +106,9 @@ pub fn addSteps(
     bench_single_step.dependOn(&install_bench_single_tile_steps.step);
     bench_single_step.dependOn(&run_single_tile_steps.step);
 
-    const run_single_tile_cpp = b.addSystemCommand(&.{"./zig-out/bin/bench-parse-single-tile-steps-cpp"});
+    const run_single_tile_cpp = b.addRunArtifact(bench_cpp_single_exe);
     run_single_tile_cpp.setCwd(b.path(""));
     if (b.args) |args| run_single_tile_cpp.addArgs(args);
-    run_single_tile_cpp.step.dependOn(&install_bench_cpp_single.step);
 
     const bench_single_cpp_step = b.step("bench-single-tile-cpp", "Run C++ single-tile parse sub-step benchmark");
     bench_single_cpp_step.dependOn(&install_bench_cpp_single.step);
