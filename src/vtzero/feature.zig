@@ -33,25 +33,30 @@ pub const Feature = struct {
             .key_table_size = key_table_size,
             .value_table_size = value_table_size,
         };
-        var reader = pbf.Reader.init(data);
         var properties_seen = false;
+        var pos: usize = 0;
 
-        while (try reader.next()) |field| {
-            switch (field.tag) {
+        while (pos < data.len) {
+            const key = try pbf.decodeVarintAt(data, &pos);
+            const tag = @as(u32, @intCast(key >> 3));
+            if (tag == 0) return error.InvalidTag;
+            const wt_num = @as(u3, @truncate(key & 0x7));
+
+            switch (tag) {
                 mvt.Feature.id => {
-                    if (field.wire_type != .varint) return error.InvalidFeatureField;
-                    result.id_value = try pbf.fieldVarintValue(field);
+                    if (wt_num != @intFromEnum(pbf.WireType.varint)) return error.InvalidFeatureField;
+                    result.id_value = try pbf.decodeVarintAt(data, &pos);
                     result.has_id_value = true;
                 },
                 mvt.Feature.tags => {
-                    if (field.wire_type != .length_delimited) return error.InvalidFeatureField;
+                    if (wt_num != @intFromEnum(pbf.WireType.length_delimited)) return error.InvalidFeatureField;
                     if (properties_seen) return error.DuplicateTagsField;
-                    result.properties = field.data;
+                    result.properties = try decodeLengthDelimited(data, &pos);
                     properties_seen = true;
                 },
                 mvt.Feature.@"type" => {
-                    if (field.wire_type != .varint) return error.InvalidFeatureField;
-                    const value = std.math.cast(u32, try pbf.fieldVarintValue(field)) orelse return error.IntegerOverflow;
+                    if (wt_num != @intFromEnum(pbf.WireType.varint)) return error.InvalidFeatureField;
+                    const value = std.math.cast(u32, try pbf.decodeVarintAt(data, &pos)) orelse return error.IntegerOverflow;
                     result.geometry_type_value = switch (value) {
                         0 => .UNKNOWN,
                         1 => .POINT,
@@ -61,11 +66,11 @@ pub const Feature = struct {
                     };
                 },
                 mvt.Feature.geometry => {
-                    if (field.wire_type != .length_delimited) return error.InvalidFeatureField;
+                    if (wt_num != @intFromEnum(pbf.WireType.length_delimited)) return error.InvalidFeatureField;
                     if (result.geometry_data != null) return error.DuplicateGeometryField;
-                    result.geometry_data = field.data;
+                    result.geometry_data = try decodeLengthDelimited(data, &pos);
                 },
-                else => {},
+                else => try skipFieldValue(data, &pos, wt_num),
             }
         }
 
@@ -151,6 +156,47 @@ pub const Feature = struct {
         };
     }
 };
+
+fn decodeLengthDelimited(data: []const u8, pos: *usize) ![]const u8 {
+    const len = try pbf.decodeVarintAt(data, pos);
+    if (len > std.math.maxInt(usize)) return error.LengthOverflow;
+    const usize_len: usize = @intCast(len);
+    if (pos.* + usize_len > data.len) return error.UnexpectedEof;
+    const start = pos.*;
+    pos.* += usize_len;
+    return data[start..pos.*];
+}
+
+fn skipFieldValue(data: []const u8, pos: *usize, wt_num: u3) !void {
+    switch (wt_num) {
+        @intFromEnum(pbf.WireType.varint) => {
+            const start = pos.*;
+            while (pos.* < data.len) {
+                const b = data[pos.*];
+                pos.* += 1;
+                if ((b & 0x80) == 0) return;
+                if (pos.* - start >= 10) return error.VarintOverflow;
+            }
+            return error.UnexpectedEof;
+        },
+        @intFromEnum(pbf.WireType.fixed64) => {
+            if (pos.* + 8 > data.len) return error.UnexpectedEof;
+            pos.* += 8;
+        },
+        @intFromEnum(pbf.WireType.length_delimited) => {
+            const len = try pbf.decodeVarintAt(data, pos);
+            if (len > std.math.maxInt(usize)) return error.LengthOverflow;
+            const usize_len: usize = @intCast(len);
+            if (pos.* + usize_len > data.len) return error.UnexpectedEof;
+            pos.* += usize_len;
+        },
+        @intFromEnum(pbf.WireType.fixed32) => {
+            if (pos.* + 4 > data.len) return error.UnexpectedEof;
+            pos.* += 4;
+        },
+        else => return error.UnsupportedWireType,
+    }
+}
 
 fn keyFromLayerData(layer_data: []const u8, index: u32) ![]const u8 {
     var reader = pbf.Reader.init(layer_data);
