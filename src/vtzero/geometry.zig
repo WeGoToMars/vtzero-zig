@@ -97,14 +97,8 @@ pub const GeometryDecoder = struct {
 
         const dx = pbf.decodeZigZag32(maybe_dx.?);
         const dy = pbf.decodeZigZag32(maybe_dy.?);
-
-        const x = @as(i64, self.cursor.x) + dx;
-        const y = @as(i64, self.cursor.y) + dy;
-
-        // We intentionally preserve vtzero behavior for invalid inputs:
-        // addition is done in i64, then truncated to i32.
-        self.cursor.x = @truncate(x);
-        self.cursor.y = @truncate(y);
+        self.cursor.x +%= dx;
+        self.cursor.y +%= dy;
         self.count_left -= 1;
 
         return self.cursor;
