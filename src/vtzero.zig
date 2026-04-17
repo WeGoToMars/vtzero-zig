@@ -3,6 +3,7 @@ pub const detail = struct {
     pub const builder_impl = @import("vtzero/builder_impl.zig");
 };
 
+pub const mvt = @import("vtzero/mvt_schema.zig");
 pub const types = @import("vtzero/types.zig");
 pub const geometry = @import("vtzero/geometry.zig");
 pub const property_value = @import("vtzero/property_value.zig");
