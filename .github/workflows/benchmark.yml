@@ -16,12 +16,13 @@ jobs:
           git clone https://github.com/mapbox/vtzero.git vtzero
           git -C vtzero checkout "$MAPBOX_VTZERO_REV"
           git -C vtzero submodule update --init --recursive
+          rm -rf vtzero/.git
       - name: Clone mapbox/protozero (headers + test data)
         run: |
           git clone --depth 1 https://github.com/mapbox/protozero.git vtzero/third_party/protozero
       - uses: mlugg/setup-zig@v2
       - name: Cache Zig
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/zig

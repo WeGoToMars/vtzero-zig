@@ -16,18 +16,20 @@ jobs:
           git clone https://github.com/mapbox/vtzero.git vtzero
           git -C vtzero checkout "$MAPBOX_VTZERO_REV"
           git -C vtzero submodule update --init --recursive
+          rm -rf vtzero/.git
       - name: Clone mapbox/protozero (headers + test data)
         run: |
           git clone --depth 1 https://github.com/mapbox/protozero.git vtzero/third_party/protozero
       - uses: mlugg/setup-zig@v2
-      - name: Install kcov dependencies
-        run: sudo apt-get install -y binutils-dev build-essential cmake libssl-dev libcurl4-openssl-dev libelf-dev libstdc++-12-dev zlib1g-dev libdw-dev libiberty-dev
       - name: Cache kcov
         id: cache-kcov
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/kcov
           key: ${{ runner.os }}-kcov-v34
+      - name: Install kcov dependencies
+        if: steps.cache-kcov.outputs.cache-hit != 'true'
+        run: sudo apt-get install -y binutils-dev build-essential cmake libssl-dev libcurl4-openssl-dev libelf-dev libstdc++-12-dev zlib1g-dev libdw-dev libiberty-dev
       - name: Build kcov from source
         if: steps.cache-kcov.outputs.cache-hit != 'true'
         run: |
@@ -39,7 +41,7 @@ jobs:
       - name: Add kcov to PATH
         run: echo "$HOME/kcov/bin" >> $GITHUB_PATH
       - name: Cache Zig
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/zig

@@ -21,6 +21,7 @@ pub fn build(b: *std.Build) void {
     test_mod.addImport("vtzero", mod);
 
     const lib_tests = b.addTest(.{
+        .name = "test",
         .root_module = test_mod,
         .test_runner = .{
             .path = b.path("test/test_runner.zig"),
