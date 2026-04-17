@@ -294,23 +294,11 @@ pub fn appendLengthDelimitedFieldUnmanaged(allocator: std.mem.Allocator, list: *
     try list.appendSlice(allocator, payload);
 }
 
-pub fn appendVarintManaged(list: *std.array_list.Managed(u8), value: u64) error{OutOfMemory}!void {
-    var v = value;
-    while (true) {
-        var byte: u8 = @truncate(v & 0x7f);
-        v >>= 7;
-        if (v != 0) byte |= 0x80;
-        try list.append(byte);
-        if (v == 0) break;
-    }
-}
-
-/// Fixed-buffer writer for length-prefixed serialization (no heap).
 pub const SliceWriter = struct {
     buf: []u8,
     pos: usize = 0,
 
-    pub fn appendByte(self: *SliceWriter, b: u8) error{BufferTooSmall}!void {
+    pub fn append(self: *SliceWriter, b: u8) error{BufferTooSmall}!void {
         if (self.pos >= self.buf.len) return error.BufferTooSmall;
         self.buf[self.pos] = b;
         self.pos += 1;
@@ -324,19 +312,19 @@ pub const SliceWriter = struct {
     }
 };
 
-pub fn appendVarintSliceWriter(w: *SliceWriter, value: u64) error{BufferTooSmall}!void {
+pub fn appendVarint(writer: anytype, value: u64) !void {
     var v = value;
     while (true) {
         var byte: u8 = @truncate(v & 0x7f);
         v >>= 7;
         if (v != 0) byte |= 0x80;
-        try w.appendByte(byte);
+        try writer.append(byte);
         if (v == 0) break;
     }
 }
 
-pub fn appendLengthDelimitedFieldSliceWriter(w: *SliceWriter, tag: u32, payload: []const u8) error{BufferTooSmall}!void {
-    try appendVarintSliceWriter(w, fieldKey(tag, .length_delimited));
-    try appendVarintSliceWriter(w, payload.len);
-    try w.appendSlice(payload);
+pub fn appendLengthDelimitedField(writer: anytype, tag: u32, payload: []const u8) !void {
+    try appendVarint(writer, fieldKey(tag, .length_delimited));
+    try appendVarint(writer, payload.len);
+    try writer.appendSlice(payload);
 }

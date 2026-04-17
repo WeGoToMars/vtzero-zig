@@ -88,7 +88,7 @@ pub const TileBuilder = struct {
 
         for (self.layers.items) |entry| {
             switch (entry) {
-                .existing => |bytes| try appendLengthDelimitedField(out, mvt.Tile.layers, bytes),
+                .existing => |bytes| try pbf.appendLengthDelimitedField(out, mvt.Tile.layers, bytes),
                 .built => |layer| try layer.appendTileLayerMessage(out),
             }
         }
@@ -107,8 +107,8 @@ pub const TileBuilder = struct {
         var w = pbf.SliceWriter{ .buf = buf };
         for (self.layers.items) |entry| {
             switch (entry) {
-                .existing => |bytes| try pbf.appendLengthDelimitedFieldSliceWriter(&w, mvt.Tile.layers, bytes),
-                .built => |layer| try impl.appendBuiltLayerVectoredSlice(&w, layer),
+                .existing => |bytes| try pbf.appendLengthDelimitedField(&w, mvt.Tile.layers, bytes),
+                .built => |layer| try impl.appendBuiltLayerVectored(&w, layer),
             }
         }
         return w.pos;
@@ -690,25 +690,10 @@ fn asBytes(value: anytype) ?[]const u8 {
     return null;
 }
 
-fn appendVarintField(out: *ByteList, tag: u32, value: u64) !void {
-    try pbf.appendVarintManaged(out, pbf.fieldKey(tag, .varint));
-    try pbf.appendVarintManaged(out, value);
-}
-
-fn appendLengthDelimitedField(out: *ByteList, tag: u32, payload: []const u8) !void {
-    try pbf.appendVarintManaged(out, pbf.fieldKey(tag, .length_delimited));
-    try pbf.appendVarintManaged(out, payload.len);
-    try out.appendSlice(payload);
-}
-
-fn appendVarint(out: *ByteList, value_any: anytype) !void {
-    try pbf.appendVarintManaged(out, @intCast(value_any));
-}
-
 fn encodePackedU32(allocator: std.mem.Allocator, values: []const u32) ![]u8 {
     var out = ByteList.init(allocator);
     errdefer out.deinit();
-    for (values) |v| try appendVarint(&out, v);
+    for (values) |v| try pbf.appendVarint(&out, v);
     return out.toOwnedSlice();
 }
 

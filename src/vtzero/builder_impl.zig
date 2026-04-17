@@ -258,8 +258,8 @@ pub const LayerBuilderImpl = struct {
     pub fn appendTileLayerMessage(self: *const LayerBuilderImpl, out: *ByteList) !void {
         if (self.num_features == 0) return;
         const payload_len = self.data.items.len + self.keys_data.items.len + self.values_data.items.len;
-        try pbf.appendVarintManaged(out, pbf.fieldKey(mvt.Tile.layers, .length_delimited));
-        try pbf.appendVarintManaged(out, @intCast(payload_len));
+        try pbf.appendVarint(out, pbf.fieldKey(mvt.Tile.layers, .length_delimited));
+        try pbf.appendVarint(out, @intCast(payload_len));
         try out.appendSlice(self.data.items);
         try out.appendSlice(self.keys_data.items);
         try out.appendSlice(self.values_data.items);
@@ -268,11 +268,11 @@ pub const LayerBuilderImpl = struct {
 
 /// Matches `vtzero::detail::layer_builder_impl::build(pbf_tile_builder)` for a built layer
 /// (`add_bytes_vectored(detail::pbf_tile::layers, ...)`).
-pub fn appendBuiltLayerVectoredSlice(w: *pbf.SliceWriter, layer: *const LayerBuilderImpl) error{BufferTooSmall}!void {
+pub fn appendBuiltLayerVectored(w: anytype, layer: *const LayerBuilderImpl) !void {
     if (layer.num_features == 0) return;
     const payload_len = layer.data.items.len + layer.keys_data.items.len + layer.values_data.items.len;
-    try pbf.appendVarintSliceWriter(w, pbf.fieldKey(mvt.Tile.layers, .length_delimited));
-    try pbf.appendVarintSliceWriter(w, @intCast(payload_len));
+    try pbf.appendVarint(w, pbf.fieldKey(mvt.Tile.layers, .length_delimited));
+    try pbf.appendVarint(w, @intCast(payload_len));
     try w.appendSlice(layer.data.items);
     try w.appendSlice(layer.keys_data.items);
     try w.appendSlice(layer.values_data.items);
