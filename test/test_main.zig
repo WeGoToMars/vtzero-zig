@@ -14,4 +14,5 @@ test {
     _ = @import("t/test_builder_linestring.zig");
     _ = @import("t/test_builder_polygon.zig");
     _ = @import("t/test_mvt_fixtures.zig");
+    _ = @import("t/test_index.zig");
 }
