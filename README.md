@@ -3,9 +3,9 @@
 [![Tests](https://github.com/WeGoToMars/vtzero-zig/actions/workflows/test.yml/badge.svg)](https://github.com/WeGoToMars/vtzero-zig/actions/workflows/test.yml)
 [![Coverage Status](https://coveralls.io/repos/github/WeGoToMars/vtzero-zig/badge.svg?branch=main)](https://coveralls.io/github/WeGoToMars/vtzero-zig?branch=main)
 
-A Zig port of the [mapbox/vtzero](https://github.com/mapbox/vtzero) C++ library for encoding and decoding vector map tiles in MVT format. Work in progress, but should be OK for personal projects.
+A Zig port of the [mapbox/vtzero](https://github.com/mapbox/vtzero) C++ library for encoding and decoding vector map tiles in MVT format.
 
-Implements the ++[Mapbox Vector Tile Specification 2.x](https://www.mapbox.com/vector-tiles/specification)++.
+Implements the [Mapbox Vector Tile Specification 2.x](https://www.mapbox.com/vector-tiles/specification).
 
 The implementation mostly mirrors C++, so most of the documentation for the original library should still apply.
 
@@ -16,7 +16,7 @@ The implementation mostly mirrors C++, so most of the documentation for the orig
 ## Features:
 
 - Full parity to vtzero functionality (as of version 1.2.0)
-- Complete port of the test suite from Catch2 to Zig's test system
+- Complete port of the test suite from Catch2 to Zig's test system + new tests for increased coverage
 - Improved performance!
 
 ## Using the library
@@ -43,17 +43,29 @@ pub fn build(b: *std.Build) !void {
 
 ## Performance benchmarks
 
-See code in [src/benchmark](/src/benchmark/), build executables with `zig build bench`.
-Currently only tile parsing is tested, more should be added in the future.
+See code in [src/benchmark](/src/benchmark/), run comparative `zig build bench`.
+Currently only tile parsing and decoding are tested, more should be added in the future.
 Tilesets are from [mvt-fixtures](https://github.com/mapbox/mvt-fixtures) repo.
 
-Results (max optimization, average of 5):
+Results (updated occasionally, execution on GitHub Action runner):
 
 
-| Tileset      | Zig vs original  |
-| ------------ | ---------------- |
-| bangkok      | **1.21x faster** |
-| chicago      | **1.09x faster** |
-| nepal        | **1.36x faster** |
-| sanfrancisco | **1.19x faster** |
+| Folder            | Benchmark         | Speedup   |
+|:------------------|:-------------|:----------|
+| bangkok           | parse-only   | 1.128x    |
+| chicago           | parse-only   | 1.097x    |
+| nepal             | parse-only   | 1.173x    |
+| norway            | parse-only   | 1.138x    |
+| osm-qa-astana     | parse-only   | 1.024x    |
+| osm-qa-montevideo | parse-only   | 0.997x    |
+| sanfrancisco      | parse-only   | 1.168x    |
+| uruguay           | parse-only   | 1.095x    |
+| bangkok           | parse+decode | 1.687x    |
+| chicago           | parse+decode | 1.566x    |
+| nepal             | parse+decode | 1.586x    |
+| norway            | parse+decode | 1.651x    |
+| osm-qa-astana     | parse+decode | 1.490x    |
+| osm-qa-montevideo | parse+decode | 1.210x    |
+| sanfrancisco      | parse+decode | 1.616x    |
+| uruguay           | parse+decode | 1.649x    |
 
