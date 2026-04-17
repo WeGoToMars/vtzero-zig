@@ -20,6 +20,15 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/mapbox/protozero.git vtzero/third_party/protozero
       - uses: mlugg/setup-zig@v2
+      - name: Cache Zig
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/zig
+            .zig-cache
+          key: ${{ runner.os }}-zig-${{ hashFiles('build.zig.zon') }}
+          restore-keys: |
+            ${{ runner.os }}-zig-
       - name: Run summary benchmarks
         run: zig build bench
       - name: Run single-tile parse sub-step benchmarks
