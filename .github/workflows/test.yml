@@ -31,10 +31,6 @@ jobs:
           sudo make install
       - name: Run all tests
         run: zig build coverage
-      - name: Debug coverage file
-        run: |
-          ls -R kcov-out/
-          head -n 20 kcov-out/test/cobertura.xml
       - name: Upload coverage to Coveralls
         uses: coverallsapp/github-action@v2
         with:
