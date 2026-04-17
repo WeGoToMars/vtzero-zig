@@ -22,7 +22,9 @@ jobs:
           rm -rf mapbox-vtzero
       - uses: mlugg/setup-zig@v2
       - name: Install kcov
-        run: sudo apt-get install -y kcov
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y kcov
       - name: Run all tests
         run: zig build coverage
       - name: Upload coverage to Coveralls
