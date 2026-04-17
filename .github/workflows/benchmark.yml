@@ -1,11 +1,11 @@
-name: Run all tests
+name: Benchmarks
 
 on:
   push:
   pull_request:
 
 jobs:
-  test-and-benchmark:
+  benchmark:
     runs-on: ubuntu-latest
     env:
       MAPBOX_VTZERO_REV: d4e8e099a32c37dfb54c04539ce73851bbe35917
@@ -28,18 +28,6 @@ jobs:
           cp -a mapbox-protozero/include vtzero/third_party/protozero/
           rm -rf mapbox-protozero
       - uses: mlugg/setup-zig@v2
-      - name: Print toolchain and runner diagnostics
-        run: |
-          echo "=== System ==="
-          uname -a
-          lscpu
-          echo
-          echo "=== Toolchains ==="
-          zig version
-          zig env
-          g++ --version
-      - name: Run all tests
-        run: zig build test
       - name: Run summary benchmarks
         run: zig build bench
       - name: Run single-tile parse sub-step benchmarks

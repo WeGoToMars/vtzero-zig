@@ -32,4 +32,13 @@ pub fn build(b: *std.Build) void {
 
     const test_step = b.step("test", "Run library tests");
     test_step.dependOn(&run_tests.step);
+
+    const run_kcov = b.addSystemCommand(&.{"kcov"});
+    run_kcov.addArg("--clean");
+    run_kcov.addPrefixedDirectoryArg("--include-path=", b.path("src"));
+    run_kcov.addArg("kcov-out");
+    run_kcov.addArtifactArg(lib_tests);
+
+    const coverage_step = b.step("coverage", "Run tests with kcov");
+    coverage_step.dependOn(&run_kcov.step);
 }
