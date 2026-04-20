@@ -1,7 +1,7 @@
 # vtzero-zig
 
 [![Tests](https://github.com/WeGoToMars/vtzero-zig/actions/workflows/test.yml/badge.svg)](https://github.com/WeGoToMars/vtzero-zig/actions/workflows/test.yml)
-[![Coverage Status](https://coveralls.io/repos/github/WeGoToMars/vtzero-zig/badge.svg?branch=main)](https://coveralls.io/github/WeGoToMars/vtzero-zig?branch=main)
+![Coveralls](https://img.shields.io/coverallsCoverage/github/WeGoToMars/vtzero-zig?branch=main&style=flat&logo=zig&link=https%3A%2F%2Fcoveralls.io%2Fgithub%2FWeGoToMars%2Fvtzero-zig)
 
 A Zig port of the [mapbox/vtzero](https://github.com/mapbox/vtzero) C++ library for encoding and decoding vector map tiles in MVT format.
 
